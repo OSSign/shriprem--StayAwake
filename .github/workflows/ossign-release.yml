@@ -1,0 +1,97 @@
+name: Build and Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: 'The source branch or ref to build from'
+        default: 'main'
+        required: true
+      release_name:
+        description: 'The name for the release'
+        required: true
+            
+jobs:
+  release:
+    environment: OSSign
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          repository: 'shriprem/StayAwake'
+          ref: ${{ github.event.inputs.source_branch }}
+          fetch-depth: 1
+
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: MSBuild of application exe
+        working-directory: StayAwake
+        run: msbuild StayAwake.vcxproj /m /p:configuration="Release" /p:platform="x64" /p:PlatformToolset="v143"
+
+      - name: Generate SHA256 hash for application_x64
+        shell: pwsh
+        run: |
+          $hash = Get-FileHash -Path "bin64\StayAwake.exe" -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+          $lowHash = $hash.ToLower()
+          echo "StayAwake.exe (64-bit) ===> SHA256 Hash: $lowHash"
+
+      - name: Archive artifacts for x64
+        uses: actions/upload-artifact@v4
+        with:
+            name: application_x64
+            path: bin64\StayAwake.exe
+
+      - name: MSBuild of application exe
+        working-directory: StayAwake
+        run: msbuild StayAwake.vcxproj /m /p:configuration="Release" /p:platform="win32" /p:PlatformToolset="v143"
+
+      - name: Generate SHA256 hash for application_x86
+        shell: pwsh
+        run: |
+          $hash = Get-FileHash -Path "bin\StayAwake.exe" -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+          $lowHash = $hash.ToLower()
+          echo "StayAwake.exe (32-bit) ===> SHA256 Hash: $lowHash"
+
+      - name: Archive artifacts for Win32
+        uses: actions/upload-artifact@v4
+        with:
+            name: application_x86
+            path: bin\StayAwake.exe
+
+      - name: Sign files
+        uses: ossign/gha-sign-azuresigntool
+        with:
+          certificateName: ${{ secrets.AST_CERT }}
+          clientId: ${{ secrets.AST_IDENT }}
+          clientSecret: ${{ secrets.AST_SECRET }}
+          hashAlgorithm: ${{ secrets.AST_TD }}
+          tenantId: ${{ secrets.AST_TENANT }}
+          timestampUrl: ${{ secrets.AST_TIMESTAMP }}
+          vaultUrl: ${{ secrets.AST_VAULT }}
+          files: |
+            bin/*
+            bin64/*
+          extensions: exe
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            bin/*
+            bin64/*
+          name: ${{ github.event.inputs.release_name }}
+          tag_name: ${{ github.run_id }}
+          body: |
+            # Signed Release ${{ github.event.inputs.release_name }}
+            
+            These are the distributable files for the signed release of StayAwake ${{ github.event.inputs.release_name }}
+
+            The source code was fetched from https://github.com/shriprem/StayAwake@${{ github.event.inputs.source_branch }}
+            
+          
