@@ -65,7 +65,7 @@ jobs:
             path: bin\StayAwake.exe
 
       - name: Sign files
-        uses: ossign/gha-sign-azuresigntool
+        uses: ossign/gha-sign-azuresigntool@main
         with:
           certificateName: ${{ secrets.AST_CERT }}
           clientId: ${{ secrets.AST_IDENT }}
@@ -94,4 +94,5 @@ jobs:
 
             The source code was fetched from https://github.com/shriprem/StayAwake@${{ github.event.inputs.source_branch }}
             
+
           
