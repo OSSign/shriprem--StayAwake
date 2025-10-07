@@ -21,11 +21,10 @@ jobs:
       
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: 'shriprem/StayAwake'
           ref: ${{ github.event.inputs.source_branch }}
-          fetch-depth: 1
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
