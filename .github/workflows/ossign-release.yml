@@ -91,8 +91,8 @@ jobs:
             # Signed Release ${{ github.event.inputs.release_name }}
             
             These are the distributable files for the signed release of StayAwake ${{ github.event.inputs.release_name }}
-
-            The source code was fetched from https://github.com/shriprem/StayAwake@${{ github.event.inputs.source_branch }}
+            
+            The source code was fetched from https://github.com/shriprem/StayAwake/tree/${{ github.event.inputs.source_branch }}
             
 
           
