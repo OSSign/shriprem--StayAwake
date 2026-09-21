@@ -34,11 +34,11 @@ jobs:
       - name: MSBuild of application exe
         working-directory: StayAwake
         run: |
-          mkdir signed
+          mkdir ../signed
           msbuild StayAwake.vcxproj /m /p:configuration="Release" /p:platform="x64"
-          mv bin64/StayAwake.exe signed/StayAwake-x64.exe
+          mv ../bin64/StayAwake.exe ../signed/StayAwake-x64.exe
           msbuild StayAwake.vcxproj /m /p:configuration="Release" /p:platform="Win32"
-          mv bin/StayAwake.exe signed/StayAwake-win32.exe
+          mv ../bin/StayAwake.exe ../signed/StayAwake-win32.exe
 
       - name: Generate SHA256 hash for application_x64
         shell: pwsh
