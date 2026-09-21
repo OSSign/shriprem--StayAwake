@@ -14,7 +14,7 @@ on:
 jobs:
   release:
     environment: OSSign
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     permissions:
       contents: write
@@ -26,59 +26,39 @@ jobs:
           repository: 'shriprem/StayAwake'
           ref: ${{ github.event.inputs.source_branch }}
 
-      - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v2
+      - name: Add msbuild (Visual Studio 2022)
+        uses: microsoft/setup-msbuild@v3
+        with:
+          vs-version: '17.0'
 
       - name: MSBuild of application exe
         working-directory: StayAwake
-        run: msbuild StayAwake.vcxproj /m /p:configuration="Release" /p:platform="x64" /p:PlatformToolset="v143"
+        run: |
+          mkdir signed
+          msbuild StayAwake.vcxproj /m /p:configuration="Release" /p:platform="x64"
+          mv bin64/StayAwake.exe signed/StayAwake-x64.exe
+          msbuild StayAwake.vcxproj /m /p:configuration="Release" /p:platform="Win32"
+          mv bin/StayAwake.exe signed/StayAwake-win32.exe
 
       - name: Generate SHA256 hash for application_x64
         shell: pwsh
         run: |
-          $hash = Get-FileHash -Path "bin64\StayAwake.exe" -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+          $hash64 = Get-FileHash -Path "signed\StayAwake-x64.exe" -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+          $hash = Get-FileHash -Path "signed\StayAwake-win32.exe" -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+          $lowHash64 = $hash64.ToLower()
           $lowHash = $hash.ToLower()
-          echo "StayAwake.exe (64-bit) ===> SHA256 Hash: $lowHash"
-          mkdir signed
-          cp bin64\StayAwake.exe signed\StayAwake64.exe
-
-      - name: Archive artifacts for x64
-        uses: actions/upload-artifact@v4
-        with:
-            name: application_x64
-            path: bin64\StayAwake.exe
-
-      - name: MSBuild of application exe
-        working-directory: StayAwake
-        run: msbuild StayAwake.vcxproj /m /p:configuration="Release" /p:platform="win32" /p:PlatformToolset="v143"
-
-      - name: Generate SHA256 hash for application_x86
-        shell: pwsh
-        run: |
-          $hash = Get-FileHash -Path "bin\StayAwake.exe" -Algorithm SHA256 | Select-Object -ExpandProperty Hash
-          $lowHash = $hash.ToLower()
-          echo "StayAwake.exe (32-bit) ===> SHA256 Hash: $lowHash"
-          cp bin\StayAwake.exe signed\StayAwake32.exe
-
-      - name: Archive artifacts for Win32
-        uses: actions/upload-artifact@v4
-        with:
-            name: application_x86
-            path: bin\StayAwake.exe
+          echo "StayAwake.exe (64-bit) ===> SHA256 Hash: $lowHash64"
+          echo "StayAwake.exe (Win32) ===> SHA256 Hash: $lowHash"
 
       - name: Sign files
-        uses: ossign/gha-sign-azuresigntool@main
+        uses: ossign/ossign@main
         with:
-          certificateName: ${{ secrets.AST_CERT }}
-          clientId: ${{ secrets.AST_IDENT }}
-          clientSecret: ${{ secrets.AST_SECRET }}
-          hashAlgorithm: ${{ secrets.AST_TD }}
-          tenantId: ${{ secrets.AST_TENANT }}
-          timestampUrl: ${{ secrets.AST_TIMESTAMP }}
-          vaultUrl: ${{ secrets.AST_VAULT }}
-          files: |
-            signed/*
-          extensions: exe
+          config: ${{ secrets.OSSIGN_CONFIG }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          installOnly: false
+          inputFiles: |
+            signed/*.exe
+          fileType: pecoff
 
       - name: Release
         uses: softprops/action-gh-release@v2
